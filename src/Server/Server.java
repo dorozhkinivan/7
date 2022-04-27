@@ -7,6 +7,8 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.*;
 
@@ -61,7 +63,6 @@ public class Server {
             if (server != null)
                 server.close();
         } catch (IOException ignore) {
-            System.out.println("wtf");
         }
 
     }
@@ -81,48 +82,23 @@ public class Server {
         clientSocket = server.accept();
         out = new ObjectOutputStream(clientSocket.getOutputStream());
         in = new ObjectInputStream(clientSocket.getInputStream());
-        while (true) {
-            try {
-                Object data = in.readObject();
-                if (data instanceof UserInfo){
-                    if (!requestsToUsersDB.userNameExists(((UserInfo) data).getName())){
-                        requestsToUsersDB.addUser((UserInfo) data);
-                        out.writeObject(Boolean.FALSE);// Такого пользователя не было.
-                        out.flush();
-                    }
-                    else {
-                        out.writeObject(Boolean.TRUE); // Такой пользователь был.
-                        out.flush();
-                    }
-
-                }
-                else if (data instanceof String){
-                    //check name unique in db
-                    out.writeObject(requestsToUsersDB.userNameExists((String) data));
-                    out.flush();
-                }
-                else if (data instanceof SentCommand){
-                    Object answer = collectionServer.executeCommand((SentCommand)data);
-                    LOGGER.log(Level.INFO, "Got command from " + clientSocket.getInetAddress().toString());
-                    if (answer != null) {
-                        sendAnswer(answer);
-                    }
-                }
-                else {
-                    System.out.println("Wrong packet!!!");
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        try {
+            SendAnswersController sendAnswersController = new SendAnswersController(out);
+            while (true) {
+                try {
+                    executorService.submit(new ProcessingObject(in.readObject(), out, requestsToUsersDB, collectionServer, sendAnswersController));
+                } catch (ClassNotFoundException e) {
+                    LOGGER.log(Level.WARNING, "Got wrong data from " + clientSocket.getInetAddress().toString());
+                } catch (SocketException e) {
+                    break;
                 }
 
-            } catch (ClassNotFoundException e) {
-                LOGGER.log(Level.WARNING, "Got wrong data from " + clientSocket.getInetAddress().toString());
-            } catch (SocketException e) {
-                break;
             }
+        }
+        finally {
+            executorService.shutdown();
         }
     }
 
-    private void sendAnswer(Object answer) throws IOException {
-        LOGGER.log(Level.INFO, "Server sends answer");
-        out.writeObject(answer);
-        out.flush();
-    }
 }
