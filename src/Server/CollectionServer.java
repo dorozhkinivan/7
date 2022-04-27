@@ -12,9 +12,11 @@ import ValueControl.ValueException;
 
 import java.util.Date;
 import java.util.HashSet;
+import java.util.concurrent.Executor;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class CollectionServer {
-     private final RequestsToWorkerDB requestsToWorkerDB =new RequestsToWorkerDB();
+     private RequestsToWorkerDB requestsToWorkerDB =new RequestsToWorkerDB(Server.getReentrantLock());
 //    public static HashSet<Worker> collection;
 //    public static void setCollection(HashSet<Worker> collection){
 //
@@ -26,7 +28,7 @@ public class CollectionServer {
 //    public static HashSet<Worker> getCollectionFromDb(){
 //
 //    }
-    private static CollectionFileAbstract dataCollectionManager = new CollectionFileCsv(System.getenv("filePath"));
+   // private static CollectionFileAbstract dataCollectionManager = new CollectionFileCsv(System.getenv("filePath"));
 
 
 //    public Object executeCommand(SentCommand command) {

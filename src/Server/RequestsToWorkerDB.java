@@ -4,13 +4,18 @@ import CollectionClasses.*;
 
 import java.sql.*;
 import java.util.HashSet;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
 public class RequestsToWorkerDB {
     private Connection connection;
-    public RequestsToWorkerDB(){
+    private ReentrantLock reentrantLock;
+    public RequestsToWorkerDB(ReentrantLock reentrantLock){
+        this.reentrantLock = reentrantLock;
         try {
+            reentrantLock.lock();
             connection = DriverManager.getConnection("jdbc:postgresql://localhost:7340/studs", "s335067", "vyi143");
+            reentrantLock.unlock();
         }
         catch(SQLException e){
             e.printStackTrace();
@@ -19,6 +24,7 @@ public class RequestsToWorkerDB {
     public boolean workersDBIsEmpty(){
         PreparedStatement preparedStatement;
         try {
+            reentrantLock.lock();
             preparedStatement = connection.prepareStatement("SELECT COUNT(*) AS c FROM workers");
             ResultSet resultSet =preparedStatement.executeQuery();
             resultSet.next();
@@ -26,6 +32,7 @@ public class RequestsToWorkerDB {
             if (resultSet.getInt("c") > 0)
                 result = false;
             preparedStatement.close();
+            reentrantLock.unlock();
             return result;
         }
         catch (SQLException e){
@@ -35,6 +42,7 @@ public class RequestsToWorkerDB {
     }
     public void addWorker(Worker worker, String userName){
         try {
+            reentrantLock.lock();
             PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO workers (nameP, dateP, salaryP, statusP, positionP, xCoordinateP, yCoordinateP, annualTurnOverP, streetP, zipCodeP, userName) VALUES (?,?,?,?,?,?,?,?,?,?,?)");
             preparedStatement.setString(1, worker.getName());
             preparedStatement.setDate(2, new Date(System.currentTimeMillis()));
@@ -49,6 +57,7 @@ public class RequestsToWorkerDB {
             preparedStatement.setString(11, userName);
             preparedStatement.executeUpdate();
             preparedStatement.close();
+            reentrantLock.unlock();
         }
         catch (SQLException e){
             e.printStackTrace();
@@ -58,6 +67,7 @@ public class RequestsToWorkerDB {
     public boolean checkIfWorkerExists(int id){
         PreparedStatement preparedStatement;
         try {
+            reentrantLock.lock();
             preparedStatement = connection.prepareStatement("SELECT idP FROM workers WHERE idP = ?");
             preparedStatement.setInt(1, id);
             ResultSet resultSet =preparedStatement.executeQuery();
@@ -65,6 +75,7 @@ public class RequestsToWorkerDB {
             if (resultSet.next())
                 result = true;
             preparedStatement.close();
+            reentrantLock.unlock();
             return result;
         }
         catch (SQLException e){
@@ -76,7 +87,7 @@ public class RequestsToWorkerDB {
     public void updateWorkerIfUserNamesEqual(Worker worker, String name, int oldID){
         PreparedStatement preparedStatement;
         try {
-            System.out.println(oldID);
+            reentrantLock.lock();
             preparedStatement = connection.prepareStatement("UPDATE workers SET nameP = ?, dateP = ?, salaryP = ?, statusP = ?, positionP = ?, xCoordinateP = ?, yCoordinateP = ?, annualTurnOverP = ?, streetP = ?, zipCodeP = ? WHERE idP = ? AND userName = ?");
             preparedStatement.setString(1, worker.getName());
             preparedStatement.setDate(2, new Date(System.currentTimeMillis()));
@@ -92,6 +103,7 @@ public class RequestsToWorkerDB {
             preparedStatement.setString(12, name);
             preparedStatement.executeUpdate();
             preparedStatement.close();
+            reentrantLock.unlock();
 
         }
         catch (SQLException e){
@@ -100,6 +112,7 @@ public class RequestsToWorkerDB {
         }
     }
     public HashSet<Worker> getAllWorkers(){
+        reentrantLock.lock();
         try (PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM workers")){
             ResultSet resultSet = preparedStatement.executeQuery();
             HashSet<Worker> collection = new HashSet<>();
@@ -124,7 +137,7 @@ public class RequestsToWorkerDB {
                 worker.setOrganization(organization);
                 collection.add(worker);
             }
-
+            reentrantLock.unlock();
             return collection;
         }
         catch (SQLException e){
@@ -134,6 +147,7 @@ public class RequestsToWorkerDB {
         return null;
     }
     public void removeWorkerIfUserNamesEqual(int id, String name){
+        reentrantLock.lock();
         try {
             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM workers WHERE idP = ? AND userName = ?");
             preparedStatement.setInt(1, id);
@@ -145,8 +159,10 @@ public class RequestsToWorkerDB {
             e.printStackTrace();
             Server.LOGGER.log(Level.WARNING, "SQL exception.");
         }
+        reentrantLock.unlock();
     }
     public void removeGraterWorkersIfUserNamesEqual(Worker worker, String name){
+        reentrantLock.lock();
         try {
             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM workers WHERE salaryP > ? AND userName = ?");
             preparedStatement.setDouble(1, worker.getSalary());
@@ -158,6 +174,7 @@ public class RequestsToWorkerDB {
             e.printStackTrace();
             Server.LOGGER.log(Level.WARNING, "SQL exception.");
         }
+        reentrantLock.unlock();
     }
     public void removeLowerWorkersIfUserNamesEqual(Worker worker, String name){
         try {
@@ -173,6 +190,7 @@ public class RequestsToWorkerDB {
         }
     }
     public void removeWorkersIfUserNamesEqual(String name){
+        reentrantLock.lock();
         try {
             PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM workers WHERE userName = ?");
             preparedStatement.setString(1, name);
@@ -183,6 +201,7 @@ public class RequestsToWorkerDB {
             e.printStackTrace();
             Server.LOGGER.log(Level.WARNING, "SQL exception.");
         }
+        reentrantLock.unlock();
     }
 
 

@@ -5,19 +5,25 @@ import UserInfo.UserInfo;
 
 import java.sql.*;
 import java.util.HashSet;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
 public class RequestsToUsersDB {
     private Connection connection;
-    public RequestsToUsersDB(){
+    private ReentrantLock reentrantLock;
+    public RequestsToUsersDB(ReentrantLock reentrantLock){
+        this.reentrantLock = reentrantLock;
         try {
+            reentrantLock.lock();
             connection = DriverManager.getConnection("jdbc:postgresql://localhost:7340/studs", "s335067", "vyi143");
+            reentrantLock.unlock();
         }
         catch(SQLException e){
             e.printStackTrace();
         }
     }
     public boolean userNameExists(String name){
+        reentrantLock.lock();
         try {
             PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) AS c FROM users WHERE name = ?");
             preparedStatement.setString(1, name);
@@ -29,16 +35,20 @@ public class RequestsToUsersDB {
             if (k > 0)
                 result = true;
             preparedStatement.close();
+            reentrantLock.unlock();
             return result;
         }
         catch (SQLException e){
             e.printStackTrace();
             Server.LOGGER.log(Level.WARNING, "SQL exception.");
+            reentrantLock.unlock();
             return false;
         }
+
     }
 
     public boolean passwordIsCorrect(UserInfo userInfo){
+        reentrantLock.lock();
         try {
             PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) AS c FROM users WHERE name = ? AND pass = ?");
             preparedStatement.setString(1, userInfo.getName());
@@ -49,15 +59,19 @@ public class RequestsToUsersDB {
             if (resultSet.getInt("c") > 0)
                 result = true;
             preparedStatement.close();
+            reentrantLock.unlock();
             return result;
         }
         catch (SQLException e){
             e.printStackTrace();
-            Server.LOGGER.log(Level.WARNING, "SQL exception.");            return false;
+            Server.LOGGER.log(Level.WARNING, "SQL exception.");
+            reentrantLock.unlock();
+            return false;
         }
     }
 
     public void addUser(UserInfo userInfo){
+        reentrantLock.lock();
         try {
             PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO users (name, pass) VALUES (?, ?)");
             preparedStatement.setString(1, userInfo.getName());
@@ -70,6 +84,7 @@ public class RequestsToUsersDB {
             e.printStackTrace();
             Server.LOGGER.log(Level.WARNING, "SQL exception.");
         }
+        reentrantLock.unlock();
     }
 
 }

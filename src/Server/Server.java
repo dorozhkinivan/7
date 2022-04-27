@@ -7,10 +7,17 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.*;
 
 public class Server {
     public static Logger LOGGER;
+    private static final ReentrantLock reentrantLock = new ReentrantLock();
+
+    public static ReentrantLock getReentrantLock() {
+        return reentrantLock;
+    }
+
     private static FileHandler fileHandler;
 
     static {
@@ -26,7 +33,7 @@ public class Server {
         }
 
     }
-    private static final RequestsToUsersDB requestsToUsersDB = new RequestsToUsersDB();
+    private static final RequestsToUsersDB requestsToUsersDB = new RequestsToUsersDB(reentrantLock);
     private Socket clientSocket;
     private ServerSocket server;
     private ObjectInputStream in;
